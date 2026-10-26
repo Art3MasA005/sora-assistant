@@ -1,0 +1,38 @@
+# Linux server / VPS deployment. Values come from .env (git-ignored).
+#   docker compose up -d
+#   docker compose exec backend python -m sora set-password
+# In .env for this setup: DATABASE_URL=postgresql://sora:${POSTGRES_PASSWORD}@db:5432/sora, WSL_DISTRO empty.
+services:
+  db:
+    image: pgvector/pgvector:pg17
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: sora
+      POSTGRES_DB: sora
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sora"]
+      interval: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATA_DIR: /app/data
+    volumes:
+      - soradata:/app/data
+    ports:
+      - "127.0.0.1:8000:8000"   # expose through Tailscale / a reverse proxy, not directly
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  pgdata:
+  soradata:

@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The connection notification, folded: one glass row (Android 12+ allows 48dp here). -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@drawable/sora_glass"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:paddingStart="12dp"
+    android:paddingTop="7dp"
+    android:paddingEnd="12dp"
+    android:paddingBottom="7dp">
+
+    <ImageView
+        android:id="@+id/sora_dot"
+        android:layout_width="14dp"
+        android:layout_height="14dp"
+        android:layout_marginEnd="10dp"
+        android:importantForAccessibility="no"
+        android:src="@drawable/sora_dot_on"/>
+
+    <TextView
+        android:id="@+id/sora_title"
+        style="@android:style/TextAppearance.Material.Notification.Title"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:ellipsize="end"
+        android:singleLine="true"/>
+
+    <Chronometer
+        android:id="@+id/sora_since"
+        style="@android:style/TextAppearance.Material.Notification.Time"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="8dp"/>
+</LinearLayout>

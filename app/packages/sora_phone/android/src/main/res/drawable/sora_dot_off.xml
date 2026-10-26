@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Disconnected by the owner: amber. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item>
+        <shape android:shape="oval">
+            <solid android:color="#40F5B544"/>
+            <size android:width="14dp" android:height="14dp"/>
+        </shape>
+    </item>
+    <item android:bottom="3dp" android:left="3dp" android:right="3dp" android:top="3dp">
+        <shape android:shape="oval">
+            <solid android:color="#FFF5B544"/>
+        </shape>
+    </item>
+</layer-list>

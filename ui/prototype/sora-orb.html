@@ -1,0 +1,721 @@
+<!doctype html>
+<html lang="bn">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+</head>
+<body>
+<title>Sora Orb Lab</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600&family=Hind+Siliguri:wght@400;500&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500&display=swap">
+<style>
+  /* Layout: one dark "voice screen" stage (orb + caption + mic) beside a slim control rack; stacks on phones. */
+  :root {
+    color-scheme: dark;
+    --void: #05060b;          /* space behind the orb */
+    --panel: #0c0e17;         /* control rack */
+    --line: #1d2133;          /* hairlines, chip borders */
+    --ink: #e6e8f2;           /* primary text */
+    --dim: #8a90a8;           /* secondary text */
+    --signal: #7cc4ff;        /* focus + active chip (updated live to the orb's colour) */
+    --danger: #ff5a6a;
+    --font-display: "Chakra Petch", "Segoe UI", system-ui, sans-serif;
+    --font-body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+    --font-mono: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+    --font-bn: "Hind Siliguri", "Nirmala UI", "Vrinda", sans-serif;
+  }
+  [hidden] { display: none !important; }
+  html, body { height: 100%; }
+  body {
+    background: var(--void);
+    color: var(--ink);
+    font-family: var(--font-body);
+    font-size: 14px;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+    padding-block: 16px;
+    box-sizing: border-box;
+  }
+  .app {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 300px;
+    gap: 16px;
+    max-width: 1180px;
+    margin: 0 auto;
+    min-height: 100%;
+  }
+  @media (max-width: 820px) { .app { grid-template-columns: minmax(0, 1fr); } }
+
+  /* ---------- stage ---------- */
+  .stage {
+    position: relative;
+    border-radius: 28px;
+    background: radial-gradient(120% 90% at 50% 38%, #0b0f1f 0%, var(--void) 62%);
+    border: 1px solid var(--line);
+    overflow: hidden;
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr) auto auto;
+    min-height: min(760px, 92vh);
+  }
+  .topbar {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 18px 22px 0;
+    font-family: var(--font-mono); font-size: 12px; color: var(--dim);
+    letter-spacing: 0.06em; text-transform: uppercase;
+  }
+  .topbar b { font-family: var(--font-display); font-weight: 600; color: var(--ink); font-size: 15px; letter-spacing: 0.12em; }
+  .canvas-wrap { position: relative; min-height: 300px; }
+  .canvas-wrap canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  #dots { mix-blend-mode: screen; }
+  .caption { text-align: center; padding: 0 24px 8px; display: grid; gap: 6px; min-height: 84px; }
+  .state-word {
+    font-family: var(--font-display); font-weight: 500; font-size: 12px;
+    letter-spacing: 0.32em; text-transform: uppercase; color: var(--signal);
+  }
+  .line-bn {
+    font-family: var(--font-bn); font-size: clamp(18px, 2.4vw, 24px); line-height: 1.45;
+    max-width: 30ch; margin: 0 auto; text-wrap: balance; color: var(--ink);
+  }
+  .line-bn span.later { color: #4b5068; }
+  .dock { display: flex; justify-content: center; align-items: center; gap: 28px; padding: 10px 0 26px; }
+  .round {
+    width: 48px; height: 48px; border-radius: 50%; border: 1px solid var(--line);
+    background: #10131f; color: var(--dim); display: grid; place-items: center; cursor: pointer;
+  }
+  .round:hover { color: var(--ink); }
+  .mic {
+    width: 76px; height: 76px; border: 0;
+    background: radial-gradient(circle at 35% 30%, #ffffff55, transparent 45%), var(--signal);
+    color: #05060b; box-shadow: 0 0 32px -4px var(--signal);
+    transition: transform .15s ease, box-shadow .3s ease;
+  }
+  .mic[aria-pressed="true"] { transform: scale(1.06); box-shadow: 0 0 48px 2px var(--signal); }
+  button:focus-visible, input:focus-visible, label:has(input:focus-visible) { outline: 2px solid var(--signal); outline-offset: 3px; }
+
+  /* ---------- control rack ---------- */
+  .panel {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 22px;
+    padding: 20px; display: flex; flex-direction: column; gap: 22px; align-self: start;
+  }
+  .panel h1 { font-family: var(--font-display); font-weight: 600; font-size: 20px; letter-spacing: 0.04em; margin: 0; }
+  .panel p { margin: 0; color: var(--dim); line-height: 1.5; }
+  fieldset { border: 0; margin: 0; padding: 0; display: grid; gap: 10px; min-width: 0; }
+  legend {
+    font-family: var(--font-mono); font-size: 11px; color: var(--dim);
+    letter-spacing: 0.14em; text-transform: uppercase; margin-bottom: 10px; padding: 0;
+  }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chips label {
+    position: relative; cursor: pointer; border: 1px solid var(--line); border-radius: 999px;
+    padding: 7px 13px; font-size: 13px; color: var(--dim); user-select: none;
+  }
+  .chips input { position: absolute; opacity: 0; pointer-events: none; }
+  .chips label:has(input:checked) { color: var(--void); background: var(--signal); border-color: var(--signal); }
+  .chips label.err:has(input:checked) { background: var(--danger); border-color: var(--danger); }
+  .range { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center; }
+  .range input { width: 100%; accent-color: var(--signal); }
+  .range output { font-family: var(--font-mono); font-size: 12px; color: var(--dim); min-width: 4ch; text-align: right; }
+  .meter { display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; font-family: var(--font-mono); font-size: 12px; }
+  .meter dt { color: var(--dim); }
+  .meter dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
+  .bar { height: 4px; border-radius: 4px; background: var(--line); overflow: hidden; grid-column: 1 / -1; }
+  .bar i { display: block; height: 100%; width: 0%; background: var(--signal); }
+  .note {
+    font-size: 12.5px; line-height: 1.5; color: var(--dim); border-left: 2px solid var(--signal);
+    padding-left: 10px;
+  }
+  .note code { font-family: var(--font-mono); font-size: 11.5px; color: var(--ink); word-break: break-all; }
+  .design-note { font-size: 12.5px; }
+  .file-btn { display: inline-flex; gap: 8px; align-items: center; cursor: pointer; color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
+  .file-btn input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+  @media (prefers-reduced-motion: reduce) { .mic { transition: none; } }
+</style>
+
+<main class="app">
+  <section class="stage" aria-label="Sora voice screen preview">
+    <div class="topbar"><b>SORA</b><span id="srcLabel">demo voice</span></div>
+    <div class="canvas-wrap">
+      <canvas id="orb" aria-hidden="true"></canvas>
+      <canvas id="dots" aria-hidden="true"></canvas>
+    </div>
+    <div class="caption" aria-live="polite">
+      <div class="state-word" id="stateWord">idle</div>
+      <div class="line-bn" id="line">“হাই লুনা” বলো, অথবা মাইক বোতাম চাপো</div>
+    </div>
+    <div class="dock">
+      <button class="round" id="btnThink" type="button" title="Show the thinking state" aria-label="Thinking">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1"/></svg>
+      </button>
+      <button class="round mic" id="btnMic" type="button" aria-pressed="false" aria-label="Talk to Sora">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>
+      </button>
+      <button class="round" id="btnSpeak" type="button" title="Let Sora speak" aria-label="Sora speaks">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 10v4h4l5 4V6L8 10H4z"/><path d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/></svg>
+      </button>
+    </div>
+  </section>
+
+  <aside class="panel">
+    <div style="display:grid;gap:8px">
+      <h1>Orb Lab</h1>
+      <p>Sora's voice orb. It reacts to how loud the voice is and shifts colour with its pitch. Prism and Reactor are kept for comparison.</p>
+    </div>
+
+    <fieldset>
+      <legend>State</legend>
+      <div class="chips" id="states">
+        <label><input type="radio" name="state" value="idle" checked>Idle</label>
+        <label><input type="radio" name="state" value="listening">Listening</label>
+        <label><input type="radio" name="state" value="thinking">Thinking</label>
+        <label><input type="radio" name="state" value="speaking">Speaking</label>
+        <label class="err"><input type="radio" name="state" value="error">Error</label>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Design</legend>
+      <div class="chips" id="designs">
+        <label><input type="radio" name="design" value="particles" checked>Particles</label>
+        <label><input type="radio" name="design" value="prism">Prism</label>
+        <label><input type="radio" name="design" value="reactor">Reactor</label>
+      </div>
+      <p class="design-note" id="designNote">A sphere of 1,500 points of light that breathes, ripples and scatters with the voice.</p>
+    </fieldset>
+
+    <fieldset>
+      <legend>Voice source</legend>
+      <div class="chips" id="sources">
+        <label><input type="radio" name="source" value="demo" checked>Demo voice</label>
+        <label><input type="radio" name="source" value="mic">Microphone</label>
+      </div>
+      <label class="file-btn" for="audioFile">
+        <input type="file" id="audioFile" accept="audio/*">Play an audio file as Sora's voice
+      </label>
+      <p class="note" id="micNote" hidden></p>
+    </fieldset>
+
+    <fieldset>
+      <legend>Sensitivity</legend>
+      <div class="range">
+        <input type="range" id="sens" min="0.4" max="2.5" step="0.1" value="1.2" aria-label="Sensitivity">
+        <output id="sensOut" for="sens">1.2×</output>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Live signal</legend>
+      <dl class="meter">
+        <dt>Loudness</dt><dd id="mDb">−∞ dB</dd>
+        <div class="bar"><i id="mBar"></i></div>
+        <dt>Pitch</dt><dd id="mPitch">—</dd>
+        <dt>Colour</dt><dd id="mHue">—</dd>
+      </dl>
+    </fieldset>
+  </aside>
+</main>
+
+<script>
+(() => {
+  "use strict";
+  const $ = (id) => document.getElementById(id);
+  const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  // ------------------------------------------------------------------ state presets
+  // Two colours per state (HSL), blended across the orb; pitch nudges the hue.
+  const STATES = {
+    idle:      { a: [228, 78, 52], b: [192, 88, 58], swirl: 0.0, word: "idle",      line: "“হাই লুনা” বলো, অথবা মাইক বোতাম চাপো" },
+    listening: { a: [204, 95, 55], b: [172, 92, 56], swirl: 0.1, word: "listening", line: "শুনছি… <span class=\"later\">আজকের unread email গুলো দেখাও</span>" },
+    thinking:  { a: [266, 82, 60], b: [222, 86, 60], swirl: 1.1, word: "thinking",  line: "খুঁজে দেখছি…" },
+    speaking:  { a: [304, 82, 60], b: [334, 90, 64], swirl: 0.25, word: "speaking", line: "তোমার ৩টা জরুরি mail এসেছে, প্রথমটা Course Advising থেকে।" },
+    error:     { a: [356, 86, 56], b: [16, 92, 56],  swirl: 0.0, word: "error",     line: "ইন্টারনেট সংযোগ পাচ্ছি না" },
+  };
+  let state = "idle", source = "demo", design = "particles";
+  const DESIGN_NOTES = {
+    particles: "A sphere of 1,500 points of light that breathes, ripples and scatters with the voice.",
+    prism: "Glass sphere with soft light drifting inside. Calm and minimal.",
+    reactor: "HUD rings around a glowing core. The 96 bars are the live voice spectrum, low notes at the bottom, high at the top.",
+  };
+  let sensitivity = 1.2;
+
+  // ------------------------------------------------------------------ audio
+  let ctx = null, analyser = null, micStream = null, fileNode = null;
+  const timeBuf = new Float32Array(2048);
+  const freqBuf = new Float32Array(1024);
+  const sig = { level: 0, db: -Infinity, pitch: 0, bright: 0.5 };
+  // 48 log-spaced bands, 90 Hz – 6 kHz: the voice's spectrum for the Reactor ring.
+  const NB = 48, bands = new Float32Array(NB), bandTarget = new Float32Array(NB);
+  const bandEdges = Array.from({ length: NB + 1 }, (_, k) => 90 * Math.pow(6000 / 90, k / NB));
+  function fillBandsFromSpectrum() {
+    const binHz = ctx.sampleRate / analyser.fftSize;
+    for (let k = 0; k < NB; k++) {
+      const lo = Math.max(1, Math.floor(bandEdges[k] / binHz)), hi = Math.max(lo + 1, Math.ceil(bandEdges[k + 1] / binHz));
+      let peak = -140;
+      for (let i = lo; i < hi && i < freqBuf.length; i++) peak = Math.max(peak, freqBuf[i]);
+      bandTarget[k] = clamp((peak + 92) / 62, 0, 1);
+    }
+  }
+  function fillBandsFromDemo(amp, pitch, t) {
+    for (let k = 0; k < NB; k++) {
+      const fc = Math.sqrt(bandEdges[k] * bandEdges[k + 1]);
+      let v = 0;
+      for (let h = 1; h <= 12; h++) { const d = (fc - h * pitch) / (28 + h * 9); v += Math.exp(-d * d) / Math.pow(h, 0.55); }
+      bandTarget[k] = clamp(amp * (0.75 * v + 0.18 * vnoise(k * 0.4, t * 3, 0.5)), 0, 1);
+    }
+  }
+
+  function ensureAudio() {
+    if (!ctx) {
+      ctx = new (window.AudioContext || window.webkitAudioContext)();
+      analyser = ctx.createAnalyser();
+      analyser.fftSize = 2048;
+      analyser.smoothingTimeConstant = 0.6;
+    }
+    if (ctx.state === "suspended") ctx.resume();
+    return ctx;
+  }
+
+  async function startMic() {
+    const note = $("micNote");
+    try {
+      ensureAudio();
+      micStream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
+      ctx.createMediaStreamSource(micStream).connect(analyser);
+      note.hidden = true;
+      return true;
+    } catch (err) {
+      note.hidden = false;
+      note.innerHTML = "This preview can't use the microphone. Open the local copy to talk to the orb: " +
+        "<code>ui\\prototype\\sora-orb.html</code> (served on localhost). Demo voice is used meanwhile.";
+      selectRadio("source", "demo");
+      source = "demo";
+      $("srcLabel").textContent = "demo voice";
+      return false;
+    }
+  }
+
+  function stopMic() {
+    if (micStream) { micStream.getTracks().forEach((t) => t.stop()); micStream = null; }
+  }
+
+  async function playFile(file) {
+    ensureAudio();
+    const buf = await ctx.decodeAudioData(await file.arrayBuffer());
+    if (fileNode) { try { fileNode.stop(); } catch (_) {} }
+    fileNode = ctx.createBufferSource();
+    fileNode.buffer = buf;
+    fileNode.connect(analyser);
+    analyser.connect(ctx.destination);
+    fileNode.onended = () => { analyser.disconnect(); fileNode = null; setState("idle"); };
+    fileNode.start();
+    source = "file";
+    $("srcLabel").textContent = file.name.slice(0, 28);
+    setState("speaking");
+  }
+
+  // Pitch by autocorrelation over the human-voice range (70–400 Hz).
+  function detectPitch(buf, rate) {
+    const minLag = Math.floor(rate / 400), maxLag = Math.floor(rate / 70);
+    let best = 0, bestLag = 0;
+    for (let lag = minLag; lag <= maxLag; lag++) {
+      let s = 0;
+      for (let i = 0; i < 1024; i++) s += buf[i] * buf[i + lag];
+      if (s > best) { best = s; bestLag = lag; }
+    }
+    return bestLag ? rate / bestLag : 0;
+  }
+
+  // A silent, voice-like envelope so the orb can be judged without any audio.
+  function demoVoice(t) {
+    const phrase = Math.sin(t * 0.55) > -0.35 ? 1 : 0;
+    const syll = Math.max(0, Math.sin(t * Math.PI * 2 * 4.3 + Math.sin(t * 1.7) * 2));
+    const amp = phrase * Math.pow(syll, 0.7) * (0.55 + 0.45 * vnoise(t * 0.9, 3.1, 7.7));
+    const pitch = 175 + 55 * Math.sin(t * 1.25) + 35 * (vnoise(t * 2.1, 1.3, 2.2) - 0.5);
+    return { amp, pitch };
+  }
+
+  function readSignal(t) {
+    let rawLevel = 0, pitch = 0, bright = 0.5;
+    const live = state === "listening" || state === "speaking";
+    if (live && (source === "mic" && micStream || source === "file" && fileNode)) {
+      analyser.getFloatTimeDomainData(timeBuf);
+      let sum = 0;
+      for (let i = 0; i < timeBuf.length; i++) sum += timeBuf[i] * timeBuf[i];
+      const rms = Math.sqrt(sum / timeBuf.length);
+      const db = 20 * Math.log10(rms + 1e-9);
+      sig.db = db;
+      rawLevel = clamp((db + 58) / 46, 0, 1);
+      if (rms > 0.01) pitch = detectPitch(timeBuf, ctx.sampleRate);
+      analyser.getFloatFrequencyData(freqBuf);
+      fillBandsFromSpectrum();
+      let num = 0, den = 0;
+      for (let i = 2; i < freqBuf.length; i++) { const m = Math.pow(10, freqBuf[i] / 20); num += m * i; den += m; }
+      bright = den ? clamp((num / den) / 120, 0, 1) : 0.5;
+    } else if (live) {
+      const d = demoVoice(t);
+      rawLevel = d.amp * 0.85;
+      pitch = d.amp > 0.05 ? d.pitch : 0;
+      sig.db = rawLevel > 0 ? -58 + rawLevel * 46 : -Infinity;
+      fillBandsFromDemo(rawLevel, d.pitch, t);
+    } else {
+      sig.db = -Infinity;
+      bandTarget.fill(0);
+    }
+    for (let k = 0; k < NB; k++) {
+      const target = clamp(bandTarget[k] * sensitivity, 0, 1);
+      bands[k] += (target - bands[k]) * (target > bands[k] ? 0.5 : 0.1);
+    }
+    rawLevel = clamp(rawLevel * sensitivity, 0, 1);
+    sig.level += (rawLevel - sig.level) * (rawLevel > sig.level ? 0.45 : 0.07);   // fast attack, slow release
+    if (pitch > 0) sig.pitch += (pitch - sig.pitch) * 0.2;
+    else sig.pitch += (0 - sig.pitch) * 0.02;
+    sig.bright += (bright - sig.bright) * 0.1;
+  }
+
+  // ------------------------------------------------------------------ noise (shared by particles + demo voice)
+  const perm = new Uint8Array(512);
+  (() => { const p = [...Array(256).keys()]; let s = 1337;
+    for (let i = 255; i > 0; i--) { s = (s * 16807) % 2147483647; const j = s % (i + 1); [p[i], p[j]] = [p[j], p[i]]; }
+    for (let i = 0; i < 512; i++) perm[i] = p[i & 255]; })();
+  const fade = (t) => t * t * (3 - 2 * t);
+  const lerp = (a, b, t) => a + (b - a) * t;
+  const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+  function h3(x, y, z) { return perm[(perm[(perm[x & 255] + y) & 255] + z) & 255] / 255; }
+  function vnoise(x, y, z) {
+    const xi = Math.floor(x), yi = Math.floor(y), zi = Math.floor(z);
+    const xf = fade(x - xi), yf = fade(y - yi), zf = fade(z - zi);
+    return lerp(
+      lerp(lerp(h3(xi, yi, zi), h3(xi + 1, yi, zi), xf), lerp(h3(xi, yi + 1, zi), h3(xi + 1, yi + 1, zi), xf), yf),
+      lerp(lerp(h3(xi, yi, zi + 1), h3(xi + 1, yi, zi + 1), xf), lerp(h3(xi, yi + 1, zi + 1), h3(xi + 1, yi + 1, zi + 1), xf), yf),
+      zf);
+  }
+
+  // ------------------------------------------------------------------ colour (smoothed per state + pitch)
+  const col = { a: [...STATES.idle.a], b: [...STATES.idle.b], swirl: 0, err: 0 };
+  function hueLerp(h1, h2, t) { let d = ((h2 - h1 + 540) % 360) - 180; return (h1 + d * t + 360) % 360; }
+  function updateColour() {
+    const s = STATES[state];
+    const shift = sig.pitch > 0 ? clamp((sig.pitch - 180) / 110, -1, 1) * 28 : 0;  // higher voice → warmer shift
+    const light = (sig.bright - 0.5) * 10;
+    for (const k of ["a", "b"]) {
+      const target = [(s[k][0] + shift + 360) % 360, s[k][1], clamp(s[k][2] + light + sig.level * 6, 30, 75)];
+      col[k][0] = hueLerp(col[k][0], target[0], 0.06);
+      col[k][1] = lerp(col[k][1], target[1], 0.06);
+      col[k][2] = lerp(col[k][2], target[2], 0.06);
+    }
+    col.swirl = lerp(col.swirl, s.swirl, 0.04);
+    col.err = lerp(col.err, state === "error" ? 1 : 0, 0.08);
+  }
+  function hsl2rgb([h, s, l]) {
+    s /= 100; l /= 100;
+    const k = (n) => (n + h / 30) % 12, a = s * Math.min(l, 1 - l);
+    const f = (n) => l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
+    return [f(0), f(8), f(4)];
+  }
+
+  // ------------------------------------------------------------------ shader orb (WebGL, used by Prism)
+  const VERT = "attribute vec2 p;void main(){gl_Position=vec4(p,0.,1.);}";
+  // Prism: a glass sphere with soft light drifting inside (metaball-like colour pools + rim and crescent highlight).
+  const FRAG_PRISM = `
+precision highp float;
+uniform vec2 uRes; uniform float uTime, uLevel, uSwirl, uErr, uRadius;
+uniform vec3 uColA, uColB;
+vec3 pool(vec2 q, vec2 c, float k, vec3 col, inout float w){ vec2 d=q-c; float a=exp(-dot(d,d)*k); w+=a; return col*a; }
+void main(){
+  vec2 uv=(gl_FragCoord.xy-0.5*uRes)/min(uRes.x,uRes.y);
+  float R=uRadius*(1.0+0.07*uLevel+0.012*sin(uTime*1.3));
+  float r=length(uv);
+  vec3 mid=mix(uColA,uColB,0.5);
+  float halo=exp(-3.0*max(r-R,0.0)/uRadius)*(0.08+0.42*uLevel);
+  vec3 col=mid*halo;
+  if(r<R){
+    vec2 p=uv/R; float rr=dot(p,p);
+    float z=sqrt(max(1.0-rr,0.0)); vec3 n=vec3(p,z);
+    vec2 q=p*(1.0+0.38*(1.0-z));                       // lens bend toward the rim
+    float t=uTime*(0.32+0.95*uLevel+0.9*uSwirl);
+    float k=3.4-1.6*uLevel;
+    float w=0.0; vec3 acc=vec3(0.0);
+    acc+=pool(q,0.55*vec2(sin(t*0.9),cos(t*0.7)),k,uColA,w);
+    acc+=pool(q,0.55*vec2(sin(t*0.6+2.0),cos(t*1.1+1.0)),k,uColB,w);
+    acc+=pool(q,0.50*vec2(sin(t*1.3+4.0),cos(t*0.5+3.0)),k*1.25,mix(uColA,vec3(1.0),0.35),w);
+    acc+=pool(q,0.45*vec2(cos(t*0.8+1.5),sin(t*1.2+5.0)),k,mix(uColB,uColA,0.5)*1.1,w);
+    acc+=pool(q,0.32*vec2(cos(t*1.6+0.5),sin(t*0.9+2.5)),k*1.7,mix(uColB,vec3(1.0,0.88,0.96),0.3),w);
+    vec3 inner=acc/(w+0.35);
+    inner*=(0.32+0.78*clamp(w*0.55,0.0,1.4))*(0.72+0.38*z);
+    float fres=pow(1.0-z,3.0);
+    vec3 rim=mix(uColB,vec3(1.0),0.55)*fres*0.9;
+    vec3 L=normalize(vec3(-0.5,0.65,0.58));
+    float spec=pow(max(dot(reflect(-L,n),vec3(0.0,0.0,1.0)),0.0),64.0);
+    float side=smoothstep(-0.1,0.7,dot(normalize(p+1e-4),normalize(vec2(-0.6,0.8))));
+    float cres=(1.0-smoothstep(0.0,0.05,abs(sqrt(rr)-0.9)))*side;    // thin highlight along the upper-left edge
+    vec3 glass=inner+rim+spec*0.9+cres*0.3;
+    col=mix(col,glass,1.0-smoothstep(0.99,1.0,sqrt(rr)));
+  }
+  col=mix(col,vec3(1.0,0.18,0.25)*(0.3+0.7*length(col)),uErr*0.6);
+  gl_FragColor=vec4(col,clamp(max(col.r,max(col.g,col.b)),0.0,1.0));
+}`;
+
+  const orbCanvas = $("orb");
+  // Transparent, premultiplied output: the glow blends into the stage instead of painting a black box.
+  const gl = orbCanvas.getContext("webgl", { antialias: true, alpha: true, premultipliedAlpha: true });
+  const programs = {};
+  let quad = null;
+  if (gl) {
+    const sh = (type, src) => { const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s);
+      if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s)); return s; };
+    quad = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, quad);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
+    const make = (frag) => {
+      const prog = gl.createProgram();
+      gl.attachShader(prog, sh(gl.VERTEX_SHADER, VERT));
+      gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, frag));
+      gl.linkProgram(prog);
+      const U = {};
+      for (const n of ["uRes", "uTime", "uLevel", "uSwirl", "uErr", "uRadius", "uColA", "uColB"]) U[n] = gl.getUniformLocation(prog, n);
+      return { prog, U, loc: gl.getAttribLocation(prog, "p") };
+    };
+    programs.prism = make(FRAG_PRISM);
+  }
+  function drawShader(p, level, radius, ca, cb) {
+    gl.useProgram(p.prog);
+    gl.bindBuffer(gl.ARRAY_BUFFER, quad);
+    gl.enableVertexAttribArray(p.loc);
+    gl.vertexAttribPointer(p.loc, 2, gl.FLOAT, false, 0, 0);
+    gl.uniform2f(p.U.uRes, W, H); gl.uniform1f(p.U.uTime, clock); gl.uniform1f(p.U.uLevel, level);
+    gl.uniform1f(p.U.uSwirl, col.swirl); gl.uniform1f(p.U.uErr, reduceMotion ? 0 : col.err); gl.uniform1f(p.U.uRadius, radius);
+    gl.uniform3f(p.U.uColA, ...ca); gl.uniform3f(p.U.uColB, ...cb);
+    gl.drawArrays(gl.TRIANGLES, 0, 3);
+  }
+
+  // Reactor: HUD rings around a core; the ring of 96 bars is the live voice spectrum (mirrored left/right).
+  let reactorSpin = 0;
+  function drawReactor(dt, level, ca, cb) {
+    const c = dctx, unit = Math.min(W, H), cx = W / 2, cy = H / 2;
+    const rgba = (v, a) => `rgba(${Math.round(v[0] * 255)},${Math.round(v[1] * 255)},${Math.round(v[2] * 255)},${a})`;
+    const white = [1, 1, 1];
+    const mixc = (u, v, t) => [u[0] + (v[0] - u[0]) * t, u[1] + (v[1] - u[1]) * t, u[2] + (v[2] - u[2]) * t];
+    const flicker = col.err > 0.3 && !reduceMotion ? 0.6 + 0.4 * Math.random() : 1;
+    reactorSpin += dt * speed * (0.18 + col.swirl * 2.4 + level * 0.4);
+    const R0 = unit * 0.085 * (1 + 0.22 * level), R1 = unit * 0.15, R2 = unit * 0.285, R3 = unit * 0.345;
+    c.save();
+    c.globalCompositeOperation = "lighter";
+
+    // core
+    const g = c.createRadialGradient(cx, cy, 0, cx, cy, R0 * 2.6);
+    g.addColorStop(0, rgba(mixc(cb, white, 0.75), 0.95 * flicker));
+    g.addColorStop(0.22, rgba(cb, 0.85 * flicker));
+    g.addColorStop(0.55, rgba(ca, 0.22 * flicker));
+    g.addColorStop(1, rgba(ca, 0));
+    c.fillStyle = g;
+    c.beginPath(); c.arc(cx, cy, R0 * 2.6, 0, Math.PI * 2); c.fill();
+    c.lineWidth = 1.4 * dpr; c.strokeStyle = rgba(mixc(cb, white, 0.4), 0.85);
+    c.beginPath(); c.arc(cx, cy, R0, 0, Math.PI * 2); c.stroke();
+
+    // spectrum ring: bottom = low frequencies, top = high, mirrored for symmetry
+    const gap = 6 * dpr, maxLen = unit * 0.1;
+    c.lineCap = "round";
+    for (let i = 0; i < 96; i++) {
+      const k = i < 48 ? i : 95 - i;
+      const idle = 0.035 * (0.5 + 0.5 * Math.sin(clock * 1.6 + k * 0.45));
+      const v = Math.max(bands[k], idle);
+      const a = Math.PI / 2 + (i / 96) * Math.PI * 2;
+      const len = 2 * dpr + v * maxLen;
+      const x0 = cx + Math.cos(a) * (R1 + gap), y0 = cy + Math.sin(a) * (R1 + gap);
+      const x1 = cx + Math.cos(a) * (R1 + gap + len), y1 = cy + Math.sin(a) * (R1 + gap + len);
+      const tint = mixc(ca, cb, k / (NB - 1));
+      c.strokeStyle = rgba(tint, (0.35 + 0.65 * v) * flicker);
+      c.lineWidth = 2.2 * dpr;
+      c.beginPath(); c.moveTo(x0, y0); c.lineTo(x1, y1); c.stroke();
+    }
+
+    // tick ring
+    c.save(); c.translate(cx, cy); c.rotate(-reactorSpin * 0.35);
+    for (let i = 0; i < 120; i++) {
+      const a = (i / 120) * Math.PI * 2, long = i % 10 === 0;
+      const r0 = R1 - (long ? 7 : 3) * dpr;
+      c.strokeStyle = rgba(ca, long ? 0.8 : 0.35);
+      c.lineWidth = (long ? 1.4 : 1) * dpr;
+      c.beginPath(); c.moveTo(Math.cos(a) * r0, Math.sin(a) * r0); c.lineTo(Math.cos(a) * R1, Math.sin(a) * R1); c.stroke();
+    }
+    c.restore();
+
+    // segmented arc ring
+    c.lineWidth = 1 * dpr; c.strokeStyle = rgba(ca, 0.22);
+    c.beginPath(); c.arc(cx, cy, R2, 0, Math.PI * 2); c.stroke();
+    c.lineWidth = 3 * dpr; c.lineCap = "butt";
+    c.shadowBlur = 14 * dpr; c.shadowColor = rgba(cb, 0.9);
+    const segs = [[0.0, 0.62], [0.78, 1.55], [1.9, 2.25], [2.5, 3.9], [4.2, 5.6]];
+    for (const [s, e] of segs) {
+      c.strokeStyle = rgba(mixc(cb, white, 0.15), 0.9 * flicker);
+      c.beginPath(); c.arc(cx, cy, R2, s + reactorSpin, e + reactorSpin); c.stroke();
+    }
+    c.shadowBlur = 0;
+
+    // outer ring with counter-rotating dashes
+    c.lineWidth = 1 * dpr; c.strokeStyle = rgba(ca, 0.35);
+    c.beginPath(); c.arc(cx, cy, R3, 0, Math.PI * 2); c.stroke();
+    c.save(); c.translate(cx, cy); c.rotate(-reactorSpin * 0.6);
+    for (let i = 0; i < 72; i++) {
+      if (i % 6 === 0) continue;
+      const a0 = (i / 72) * Math.PI * 2, a1 = a0 + 0.035;
+      c.strokeStyle = rgba(cb, 0.55); c.lineWidth = 2 * dpr;
+      c.beginPath(); c.arc(0, 0, R3 + 6 * dpr, a0, a1); c.stroke();
+    }
+    c.restore();
+
+    // thinking: a sweep that chases around the outer rings
+    if (col.swirl > 0.08) {
+      const a = reactorSpin * 2.2;
+      for (let j = 0; j < 18; j++) {
+        c.strokeStyle = rgba(mixc(cb, white, 0.3), (col.swirl * 0.55) * (1 - j / 18));
+        c.lineWidth = 2 * dpr;
+        c.beginPath(); c.arc(cx, cy, (R2 + R3) / 2, a - j * 0.05, a - j * 0.05 + 0.05); c.stroke();
+      }
+    }
+
+    // readout under the rings
+    c.globalCompositeOperation = "source-over";
+    c.font = `${11 * dpr}px "IBM Plex Mono", monospace`;
+    c.textAlign = "center";
+    c.fillStyle = rgba(mixc(ca, white, 0.5), 0.75);
+    const pitchTxt = sig.pitch > 60 ? `${sig.pitch.toFixed(0)} HZ` : "— HZ";
+    c.fillText(`${STATES[state].word.toUpperCase()}  ·  ${pitchTxt}`, cx, cy + R3 + 30 * dpr);
+    c.restore();
+  }
+
+  // ------------------------------------------------------------------ particle shell (2D canvas, additive)
+  const dots = $("dots"), dctx = dots.getContext("2d");
+  const N = 1500, base = new Float32Array(N * 3), seeds = new Float32Array(N);
+  for (let i = 0; i < N; i++) {           // Fibonacci sphere: even spacing like GIF 2
+    const y = 1 - (i / (N - 1)) * 2, rad = Math.sqrt(1 - y * y), th = i * Math.PI * (3 - Math.sqrt(5));
+    base[i * 3] = Math.cos(th) * rad; base[i * 3 + 1] = y; base[i * 3 + 2] = Math.sin(th) * rad;
+    seeds[i] = Math.random();
+  }
+  let rotY = 0;
+
+  // ------------------------------------------------------------------ sizing
+  let W = 0, H = 0, dpr = 1;
+  function resize() {
+    const box = orbCanvas.parentElement.getBoundingClientRect();
+    dpr = Math.min(2, window.devicePixelRatio || 1);
+    W = Math.max(1, Math.floor(box.width * dpr)); H = Math.max(1, Math.floor(box.height * dpr));
+    for (const c of [orbCanvas, dots]) { c.width = W; c.height = H; }
+    if (gl) gl.viewport(0, 0, W, H);
+  }
+  new ResizeObserver(resize).observe(orbCanvas.parentElement);
+  resize();
+
+  // ------------------------------------------------------------------ frame loop
+  let last = performance.now(), clock = 0;
+  const speed = reduceMotion ? 0.4 : 1;
+  function frame(now) {
+    const dt = Math.min(0.05, (now - last) / 1000); last = now;
+    clock += dt * speed;
+    readSignal(clock);
+    // Idle breathing so the orb never looks frozen.
+    const breathe = state === "idle" ? 0.06 + 0.05 * Math.sin(clock * 1.4) : 0;
+    const level = Math.max(sig.level, breathe);
+    updateColour();
+    const ca = hsl2rgb(col.a), cb = hsl2rgb(col.b);
+    if (gl) {
+      if (design === "prism") drawShader(programs.prism, level, 0.3, ca, cb);
+      else { gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT); }
+    }
+
+    dctx.clearRect(0, 0, W, H);
+    if (design === "reactor") drawReactor(dt, level, ca, cb);
+    if (design === "particles") {
+      dctx.globalCompositeOperation = "lighter";
+      const unit = Math.min(W, H);
+      const shell = 0.33 * unit;
+      const cx = W / 2, cy = H / 2;
+      rotY += dt * speed * (0.22 + col.swirl * 1.3);
+      const tilt = 0.35, ct = Math.cos(tilt), st = Math.sin(tilt);
+      const cr = Math.cos(rotY), sr = Math.sin(rotY);
+      const scatter = level * level * 0.55;                 // loud moments break the sphere apart like GIF 2
+      const pull = 1 - col.swirl * 0.12;                    // thinking: drawn inward
+      const jitter = col.err * (reduceMotion ? 0 : 0.04);
+      const [ar, ag, ab] = ca.map((v) => Math.round(v * 255)), [br, bg, bb] = cb.map((v) => Math.round(v * 255));
+      for (let i = 0; i < N; i++) {
+        let x = base[i * 3], y = base[i * 3 + 1], z = base[i * 3 + 2];
+        const n1 = vnoise(x * 2.2 + clock * 0.55, y * 2.2, z * 2.2 - clock * 0.4);
+        const d = pull * (1 + 0.04 * Math.sin(clock * 1.4 + seeds[i] * 6) + (n1 - 0.5) * (0.08 + level * 0.7)
+          + scatter * (seeds[i] - 0.3) + (Math.random() - 0.5) * jitter);
+        x *= d; y *= d; z *= d;
+        if (col.swirl > 0.05) {                              // twist around the vertical axis while thinking
+          const tw = y * col.swirl * 1.4, c2 = Math.cos(tw), s2 = Math.sin(tw);
+          const nx = x * c2 - z * s2; z = x * s2 + z * c2; x = nx;
+        }
+        let rx = x * cr - z * sr, rz = x * sr + z * cr;
+        const ry = y * ct - rz * st; rz = y * st + rz * ct;
+        const persp = 2.8 / (2.8 - rz);
+        const px = cx + rx * shell * persp, py = cy - ry * shell * persp;
+        const depth = (rz + 1) / 2;
+        const mix = (y + 1) / 2;
+        const size = Math.max(0.8, (1.0 + depth * 1.4) * dpr * (0.85 + level * 0.6));
+        dctx.fillStyle = `rgba(${Math.round(ar + (br - ar) * mix)},${Math.round(ag + (bg - ag) * mix)},${Math.round(ab + (bb - ab) * mix)},${(0.18 + depth * 0.62).toFixed(3)})`;
+        dctx.fillRect(px - size / 2, py - size / 2, size, size);
+      }
+      dctx.globalCompositeOperation = "source-over";
+    }
+
+    // live readouts (throttled by rounding)
+    $("mDb").textContent = Number.isFinite(sig.db) && sig.db > -90 ? `${sig.db.toFixed(0).replace("-", "−")} dB` : "−∞ dB";
+    $("mBar").style.width = `${(level * 100).toFixed(0)}%`;
+    $("mPitch").textContent = sig.pitch > 60 ? `${sig.pitch.toFixed(0)} Hz` : "—";
+    $("mHue").textContent = `${col.a[0].toFixed(0)}° → ${col.b[0].toFixed(0)}°`;
+    document.documentElement.style.setProperty("--signal", `hsl(${col.b[0].toFixed(0)} ${col.b[1].toFixed(0)}% ${Math.max(58, col.b[2]).toFixed(0)}%)`);
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+
+  // ------------------------------------------------------------------ controls
+  function selectRadio(name, value) {
+    const el = document.querySelector(`input[name="${name}"][value="${value}"]`);
+    if (el) el.checked = true;
+  }
+  function setState(next) {
+    state = next;
+    selectRadio("state", next);
+    $("stateWord").textContent = STATES[next].word;
+    $("line").innerHTML = STATES[next].line;
+    $("btnMic").setAttribute("aria-pressed", String(next === "listening"));
+  }
+  $("states").addEventListener("change", (e) => setState(e.target.value));
+  $("designs").addEventListener("change", (e) => {
+    design = e.target.value;
+    $("designNote").textContent = DESIGN_NOTES[design];
+  });
+  $("sources").addEventListener("change", async (e) => {
+    source = e.target.value;
+    $("srcLabel").textContent = source === "mic" ? "microphone" : "demo voice";
+    if (source === "mic") { if (await startMic()) setState("listening"); }
+    else stopMic();
+  });
+  // A bare #particles / #prism / #reactor in the link opens that design.
+  const fromHash = location.hash.slice(1);
+  if (DESIGN_NOTES[fromHash]) { selectRadio("design", fromHash); design = fromHash; $("designNote").textContent = DESIGN_NOTES[design]; }
+  $("audioFile").addEventListener("change", (e) => { const f = e.target.files[0]; if (f) playFile(f); });
+  $("sens").addEventListener("input", (e) => { sensitivity = +e.target.value; $("sensOut").textContent = `${sensitivity.toFixed(1)}×`; });
+
+  // The mic button walks the real flow: listen → think → speak → idle.
+  let flowTimer = null;
+  $("btnMic").addEventListener("click", async () => {
+    clearTimeout(flowTimer);
+    if (state === "listening") {
+      setState("thinking");
+      flowTimer = setTimeout(() => { setState("speaking"); flowTimer = setTimeout(() => setState("idle"), 6500); }, 1800);
+      return;
+    }
+    if (source === "mic" && !micStream) { if (!(await startMic())) source = "demo"; }
+    setState("listening");
+  });
+  $("btnThink").addEventListener("click", () => { clearTimeout(flowTimer); setState("thinking"); });
+  $("btnSpeak").addEventListener("click", () => { clearTimeout(flowTimer); setState("speaking"); });
+})();
+</script>
+
+</body>
+</html>

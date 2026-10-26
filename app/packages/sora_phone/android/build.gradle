@@ -1,0 +1,40 @@
+group 'com.yeasir.sora_phone'
+version '0.1.0'
+
+buildscript {
+    repositories {
+        google()
+        mavenCentral()
+    }
+    dependencies {
+        classpath 'com.android.tools.build:gradle:8.6.0'
+    }
+}
+
+rootProject.allprojects {
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+
+apply plugin: 'com.android.library'
+
+android {
+    namespace 'com.yeasir.sora_phone'
+    compileSdk 35
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_11
+        targetCompatibility JavaVersion.VERSION_11
+    }
+
+    defaultConfig {
+        minSdkVersion 24
+    }
+}
+
+dependencies {
+    // SoraLink: the phone's WebSocket to the server while the app is closed
+    implementation 'com.squareup.okhttp3:okhttp:4.12.0'
+}

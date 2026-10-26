@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Native launch window: plain background only. The Flutter splash draws the theme mark
+     (sparkle on light, crescent on dark), which the system cannot know before the app runs. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:drawable="@color/splash_background" />
+</layer-list>
