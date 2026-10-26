@@ -1,0 +1,12 @@
+# Sora PC agent (runs in the project's .venv)
+websockets>=13
+httpx>=0.27
+# hands-free "Hey Sora" (voice_wake.py); also needs data/models/vad/silero_vad.onnx from
+# https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/silero_vad.onnx
+sherpa-onnx>=1.12
+sounddevice>=0.5
+numpy>=2
+# images copied on the PC go to the phone's clipboard (clipboard_sync.py)
+pillow>=11
+# the browser Sora drives (browser.py), with the installed Chrome or Edge; also a backend dependency
+playwright>=1.48

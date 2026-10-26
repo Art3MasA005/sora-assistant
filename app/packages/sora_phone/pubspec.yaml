@@ -1,0 +1,19 @@
+name: sora_phone
+description: "Sora's phone actions on Android: open/close apps, media and volume keys, torch, alarms, and (through an accessibility service) screenshots and lock."
+version: 0.1.0
+publish_to: 'none'
+
+environment:
+  sdk: ^3.12.2
+  flutter: ">=3.30.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+flutter:
+  plugin:
+    platforms:
+      android:
+        package: com.yeasir.sora_phone
+        pluginClass: SoraPhonePlugin

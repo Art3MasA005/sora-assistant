@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The PC's Sora server speaks plain HTTP on the home network, at whatever address the router gives
+     the PC (192.168.0.101 one day, .103 the next), so cleartext can't be limited to one address: the
+     accessibility service's line (OkHttp) obeys this file, and with a single fixed address it was
+     refused the moment the PC moved, while the Flutter app (which doesn't) kept working.
+     Everything else the app opens is HTTPS by its URL. -->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true" />
+</network-security-config>

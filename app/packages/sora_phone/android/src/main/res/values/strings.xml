@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="sora_accessibility_label">Sora</string>
+    <string name="sora_accessibility_description">Lets Sora take screenshots, lock the screen and go back to the home screen when you ask it to. With clipboard sync on, it also notices when you tap Copy, so what you copied can go to your PC. When you approve a WhatsApp message, it taps WhatsApp\'s Send button for you; that is the only screen Sora reads, and only for those few seconds.</string>
+</resources>

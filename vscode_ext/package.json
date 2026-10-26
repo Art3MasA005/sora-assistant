@@ -1,0 +1,41 @@
+{
+  "name": "sora-bridge",
+  "displayName": "Sora Bridge",
+  "description": "Lets Sora (your personal assistant) work in VS Code for you: files, terminals, problems, git, tasks and debugging, through the Sora PC agent on this computer.",
+  "version": "1.0.0",
+  "publisher": "sora",
+  "license": "UNLICENSED",
+  "engines": {
+    "vscode": "^1.93.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "extensionKind": [
+    "ui",
+    "workspace"
+  ],
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": true
+    },
+    "virtualWorkspaces": false
+  },
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./extension.js",
+  "contributes": {
+    "configuration": {
+      "title": "Sora Bridge",
+      "properties": {
+        "sora.longCommandMinutes": {
+          "type": "number",
+          "default": 3,
+          "minimum": 0,
+          "description": "Tell the phone when a terminal command that ran at least this many minutes ends (0 = only commands Sora started)."
+        }
+      }
+    }
+  }
+}
