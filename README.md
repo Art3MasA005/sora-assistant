@@ -401,8 +401,7 @@ cd app
 flutter analyze lib packages/sora_phone/lib   # Dart is formatted at width 140
 ```
 
-How to add a phone or PC action, and the order of planned automation work, are described in [CLAUDE.md](CLAUDE.md)
-and [docs/automation-roadmap.md](docs/automation-roadmap.md). The client protocol is in [docs/api.md](docs/api.md).
+The client protocol is in [docs/api.md](docs/api.md).
 
 ## Project layout
 
@@ -420,7 +419,7 @@ app/            Flutter app for Android and Windows
   packages/sora_phone/   Android plugin: phone actions and the background link (Java)
 vscode_ext/     Sora Bridge, the VS Code extension
 scripts/        setup, autostart and wake-word training helpers
-docs/           client API, Google setup, automation roadmap, screenshots
+docs/           client API, Google setup, screenshots
 ```
 
 CLI: `python -m sora setup | serve | migrate | set-password | create-device | chat | connect-google | reindex | poll-email`
